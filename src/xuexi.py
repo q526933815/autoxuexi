@@ -9,14 +9,16 @@ from selenium.webdriver.common.action_chains import ActionChains
 import requests
 from datetime import datetime
 import os
-from Tkinter import *
-import tkMessageBox
+from tkinter import *
+import tkinter.messagebox as tkMessageBox
 import json
 import time
 import logging
 import threading
 import random
 from selenium.webdriver.remote.remote_connection import LOGGER
+import re
+
 # from selenium.webdriver.chrome.options import Options
 # from PIL import Image, ImageTk
 # import base64
@@ -39,6 +41,7 @@ Try to store url list by files.
 File named *.old means it has been read.
 '''
 
+
 class XUEXI:
     def __init__(self):
         # chrome_options = Options()
@@ -52,7 +55,7 @@ class XUEXI:
         # self.driver = webdriver.Chrome('driver/chromedriver.exe', chrome_options=chrome_options)
         self.driver = webdriver.Chrome('driver/chromedriver.exe')
         LOGGER.setLevel(logging.ERROR)
-        #self.driver.get('https://pc.xuexi.cn/points/my-points.html')
+        # self.driver.get('https://pc.xuexi.cn/points/my-points.html')
 
     '''
     return json:
@@ -60,6 +63,7 @@ class XUEXI:
         title:
         id:
     '''
+
     def get_new_article(self):
         ret = ''
         list_a = iter(os.listdir('articles/'))
@@ -79,13 +83,13 @@ class XUEXI:
                 ret = ''
                 yield ret
 
-
     '''
     return json:
         url: 
         title:
         id:
     '''
+
     def get_new_video(self):
         ret = ''
         list_v = iter(os.listdir('videos/'))
@@ -110,11 +114,12 @@ class XUEXI:
             True: already login
             False: not login
     '''
+
     def login(self):
         reg_url = r'https://pc.xuexi.cn/points/login.html.*'  # check if it has been login
 
         self.driver.get('https://pc.xuexi.cn/points/my-points.html')
-        #self.driver.switch_to.frame('ddlogin-iframe')
+        # self.driver.switch_to.frame('ddlogin-iframe')
 
         if re.match(reg_url, self.driver.current_url):
             # login_QR = WebDriverWait(self.driver, 10).until(
@@ -148,17 +153,16 @@ class XUEXI:
         # score_url = r'https://pc.xuexi.cn/points/my-points.html.*'
         # if not re.match(login_url, self.driver.current_url) and not re.match(score_url, self.driver.current_url):
         #     self.driver.get('https://pc.xuexi.cn/points/my-points.html')
-        #self.driver.switch_to.default_content()
+        # self.driver.switch_to.default_content()
         while self.login() == False:
             pass
-
 
         score = []
         app.log(u'当前得分情况：')
         score_title = iter([u'每日登陆', u'阅读文章', u'观看视频', u'文章学习时长', u'视频学习时长'])
         score_reg = u'^(%d)分.*'
         for s in self.driver.find_elements_by_xpath('//div[@class="my-points-card-text"]'):
-            app.log(u'      %s: %s' %(score_title.next(),s.text), printtime=False)
+            app.log(u'      %s: %s' % (score_title.__next__(), s.text), printtime=False)
             try:
                 score.append(int(s.text.split('/')[0][:-1]))
             except:
@@ -168,6 +172,7 @@ class XUEXI:
     '''
     get an new article url, and open it
     '''
+
     def read_new_article(self):
         new_article = next(self.get_new_article())
 
@@ -191,16 +196,14 @@ class XUEXI:
             if u'scroll-done' in self.driver.title:
                 break
             else:
-                time.sleep(random.randint(0,3))
+                time.sleep(random.randint(0, 3))
 
     '''
     get an new video url, and open it
     '''
+
     def read_new_video(self):
         new_video = next(self.get_new_video())
-
-        print new_video
-
         if new_video == '':
             app.log(u'没有找到新视频，请重新更新数据')
             app.log(u'自动进行数据更新...')
@@ -251,17 +254,18 @@ class Job(threading.Thread):
             if len(score) < 5:
                 continue
 
-            if score[1] < 6 or score[3] < 8:  # read articles
+            if score[1] < 6 or score[3] < 6:  # read articles
                 self.xx_obj.read_new_article()
-            elif score[2] < 6 or score[4] < 10:  # watch videos
+            elif score[2] < 6 or score[4] < 6:  # watch videos
                 self.xx_obj.read_new_video()
-            else:                          #  all tasks are done, sleep
+            else:  # all tasks are done, sleep
                 app.log(u'当日学习任务已完成。 如果保持程序继续运行，明天将自动进行学习。')
-                time.sleep(random.randint(30*60, 90 * 60))
+                time.sleep(random.randint(30 * 60, 90 * 60))
 
     def stop(self):
         self.__running.clear()
         self.xx_obj.close()
+
 
 class App():
     def __init__(self, parent=None, *args, **kwargs):
@@ -290,7 +294,6 @@ class App():
             parent, orient=VERTICAL, command=self.log_content.yview)
         self.log_content.configure(yscrollcommand=self.vbar.set)
         self.vbar.grid(row=1, column=3, sticky='NS')
-
 
         self.job = Job()
 
@@ -338,6 +341,7 @@ class App():
 
     #     self.label_img.grid(row=2, column=0, padx=5, pady=5, columnspan=3, sticky='NSWE')
 
+
 def update_local_data():
     resp = requests.get('https://www.xuexi.cn/dataindex.js')
     new_video_count = 0
@@ -350,24 +354,28 @@ def update_local_data():
                     for detail in data[key][child_key]:
                         if '_id' in detail and 'static_page_url' in detail:
                             if 'e43e220633a65f9b6d8b53712cba9caa' in detail['static_page_url']:
-                                if not os.path.exists('articles/' + detail['_id'] + '.old') and not os.path.exists('articles/' + detail['_id']):
-                                    with open('articles/' + detail['_id'], 'wb+') as f:
+                                if not os.path.exists('articles/' + detail['_id'] + '.old') and not os.path.exists(
+                                        'articles/' + detail['_id']):
+                                    with open('articles/' + detail['_id'], 'w+') as f:
                                         content = {
                                             'id': detail['_id'],
                                             'url': detail['static_page_url'],
                                             'title': detail['frst_name']
                                         }
-                                        json.dump(content, f)
+                                        content = json.dumps(content)
+                                        f.write(content)
                                     new_article_count += 1
                             elif 'cf94877c29e1c685574e0226618fb1be' in detail['static_page_url']:
-                                if not os.path.exists('videos/' + detail['_id'] + '.old') and not os.path.exists('videos/' + detail['_id']):
-                                    with open('videos/' + detail['_id'], 'wb+') as f:
+                                if not os.path.exists('videos/' + detail['_id'] + '.old') and not os.path.exists(
+                                        'videos/' + detail['_id']):
+                                    with open('videos/' + detail['_id'], 'w+') as f:
                                         content = {
                                             'id': detail['_id'],
                                             'url': detail['static_page_url'],
                                             'title': detail['frst_name']
                                         }
-                                        json.dump(content, f)
+                                        content = json.dumps(content)
+                                        f.write(content)
                                     new_video_count += 1
         app.log(u'数据更新完毕, 新增文章%d篇，新增视频%d个' % (new_article_count, new_video_count))
     else:
